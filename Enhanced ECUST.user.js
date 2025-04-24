@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Enhanced ECUST
 // @namespace    https://bbs.tampermonkey.net.cn/
-// @version      0.0.1
+// @version      0.0.2
 // @description  Make ECUST easier
 // @author       Oborozuki
 // @match        https://*.ecust.edu.cn/*
@@ -52,8 +52,8 @@
         document.head.appendChild(style);
         document.querySelectorAll('.wp_pdf_player').forEach(dom => {
             const pdfURL = dom.getAttribute('pdfsrc');
-            const fileAttr = JSON.parse(dom.getAttribute('sudyfile-attr').replaceAll("'", '"'));
-            const pdfName = fileAttr.title ? fileAttr.title : '';
+            const fileAttr = dom.getAttribute('sudyfile-attr');
+            const pdfName = fileAttr ? JSON.parse(fileAttr.replaceAll("'", '"')).title : '';
             const button = document.createElement('a');
             button.href = pdfURL;
             button.textContent = '📄 下载 PDF';
@@ -74,7 +74,6 @@
         // 不提醒推荐浏览器
         elementGetter('a.zbrowser_close').then(dom => dom.click());
     }
-
 
     if (matchURL('sso.ecust.edu.cn/authserver/login')) {
         /* 统一身份认证 */
@@ -113,7 +112,64 @@
             }
             /* eslint-enable no-undef */
         }, 200);
-        // TODO: 不写行程
+
+        // 不写行程
+        /* eslint-disable no-undef */
+        window.onload = () => {
+            unsafeWindow.saveOrUpdate = () => {
+                const entity = $('.sui-form').sui().getValue();
+                entity.__type = "sdo:com.sudytech.work.uust.xsjqxctb.xsjqxctb.TUustXsjqxctb";
+                if (entity.sflx == "是") {
+                    const jqxcEntity = $("#mTable").getValue();
+                    jqxcEntity.forEach(function (xc) {
+                        xc.jtgj = JSON.stringify(xc.jtgj);
+                        if (xc.qzrq) {
+                            xc.ksrq = JSON.parse(xc.qzrq).ksrq;
+                            xc.jsrq = JSON.parse(xc.qzrq).jsrq;
+                        }
+                    });
+                    entity.tUustXsjqxctbJqxcs = jqxcEntity;
+                } else {
+                    entity.bz = "";
+                    entity.lxrq = "";
+                    entity.fxrq = "";
+                }
+                entity.tbrq = tbrq;
+                layer.confirm('确认填写信息无误？', function (index) {
+                    layer.close(index);
+                    $('#post').prop("disabled", true);
+                    $.ajax({
+                        type: "POST",
+                        url: "com.sudytech.work.uust.xsjqxctb.xsjqxctb.saveOrUpdateEntity.biz.ext",
+                        data: wf.jsonString({
+                            entity: entity
+                        }),
+                        contentType: "text/json",
+                        async: false,
+                        success: function (data) {
+                            if (data.result.success == true) {
+                                layer.alert('提交成功！', { icon: 1, title: '提示', closeBtn: 0 }, function () {
+                                    sendBtn("null", "null", "null");
+                                });
+                            } else {
+                                if (data.result.event) {
+                                    alert(data.result.event.split(":")[1]);
+                                    $('#post').prop("disabled", false);
+                                } else {
+                                    alert("提交失败");
+                                    $('#post').prop("disabled", false);
+                                }
+                            }
+                        },
+                        error: function () {
+                            alert("数据库操作失败！");
+                            $('#post').prop("disabled", false);
+                        }
+                    });
+                });
+            };
+        };
+        /* eslint-enable no-undef */
 
     } else if (matchURL('mooc.s.ecust.edu.cn/coursedata/batchDownload')) {  // 
         /* 华东理工大学本研 批量下载 */
@@ -150,7 +206,7 @@ function convertToVPN(url) {
 
 function matchURL(url) {
     const href = window.location.href;
-    return href.includes(url) || convertToVPN(href).includes(url);
+    return href.includes(url) || href.includes(convertToVPN(url));
 }
 
 function addVPNButton() {
